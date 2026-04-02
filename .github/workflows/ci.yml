@@ -37,6 +37,6 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          curl -fsSL https://railway.app/install.sh | sh
+          npm install -g @railway/cli
           railway login --token "$RAILWAY_TOKEN"
-          railway up --service points-system --environment production
+          railway up --service points-system --environment production --detached
