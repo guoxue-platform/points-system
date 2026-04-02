@@ -8,7 +8,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent / "points.db"
+DB_PATH = Path(os.environ.get("DATABASE_PATH", Path(__file__).parent / "points.db"))
 
 # -------------------------------------------------------------------
 # 连接管理
