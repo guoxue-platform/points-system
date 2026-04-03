@@ -4,6 +4,7 @@ API v1: /api/v1/points
 """
 
 import os
+import threading
 from fastapi import FastAPI, Query, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -21,11 +22,22 @@ from database import (
     get_guoxue_metrics,
 )
 
+try:
+    from git_sync import ensure_git_initialized, git_pull, git_push
+    _GIT_SYNC = True
+except ImportError:
+    _GIT_SYNC = False
+
 # -------------------------------------------------------------------
 # App 初始化
 # -------------------------------------------------------------------
 
 app = FastAPI(title="积分系统 API", version="1.0.0")
+
+@app.on_event("startup")
+def startup_event():
+    if _GIT_SYNC:
+        ensure_git_initialized()
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,6 +106,8 @@ def create_record(body: RecordCreate, branch: str = Header(..., alias="X-Agent-B
         points=body.points,
         created_by=body.created_by,
     )
+    if _GIT_SYNC:
+        threading.Thread(target=git_push, daemon=True).start()
 
     return ok({"id": record_id, "week_num": get_current_week_num()})
 
@@ -123,6 +137,8 @@ def reset_points(branch: str = Header(..., alias="X-Agent-Branch")):
     if branch != "main":
         raise HTTPException(status_code=403, detail="Only main branch can trigger reset")
     result = reset_weekly()
+    if _GIT_SYNC:
+        threading.Thread(target=git_push, daemon=True).start()
     return ok(result)
 
 # -------------------------------------------------------------------
@@ -142,6 +158,8 @@ def create_guoxue_metric(
         meta=body.meta,
         week=body.week,
     )
+    if _GIT_SYNC:
+        threading.Thread(target=git_push, daemon=True).start()
     return ok({"id": record_id, "week_num": body.week or get_current_week_num()})
 
 @app.get("/api/v1/guoxue/metrics")
