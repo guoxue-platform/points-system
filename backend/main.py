@@ -54,7 +54,7 @@ init_db()
 # 工具
 # -------------------------------------------------------------------
 
-ALLOWED_BRANCHES = {"dev", "main"}
+ALLOWED_BRANCHES = {"dev", "fin", "guo", "main"}
 
 def check_branch(x_agent_branch: Optional[str] = Header(None)) -> str:
     """校验分支权限，返回分支名"""
