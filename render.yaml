@@ -1,0 +1,42 @@
+# render.yaml - Points System Deployment Blueprint
+# Apply at: https://render.com/blueprints
+
+services:
+  - type: web
+    name: points-backend
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: points-db
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/points.db
+      - key: PORT
+        value: "10000"
+
+  - type: web
+    name: points-frontend
+    env: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: VITE_API_URL
+        # After backend deploys, update this to the actual backend URL
+        # e.g. https://points-backend.onrender.com
+        value: https://points-backend.onrender.com
+      - key: NODE_ENV
+        value: production
