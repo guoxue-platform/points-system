@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS records (
     week_num    TEXT    NOT NULL,
     created_at  TEXT    NOT NULL,
     created_by  TEXT    NOT NULL,
-    CHECK (points IN (-5,-3,-1,1,3,5))
+    CHECK (points IN (-10,-5,-3,-1,1,3,5,10,20,50,60))
 );
 
 CREATE INDEX IF NOT EXISTS idx_records_week_num  ON records(week_num);

@@ -54,7 +54,7 @@ init_db()
 # 工具
 # -------------------------------------------------------------------
 
-ALLOWED_BRANCHES = {"dev", "fin", "guo", "main"}
+ALLOWED_BRANCHES = {"dev", "fin", "guo", "main", "des_ui", "backend", "frontend", "doc", "test", "eng", "req"}
 
 def check_branch(x_agent_branch: Optional[str] = Header(None)) -> str:
     """校验分支权限，返回分支名"""
@@ -75,7 +75,7 @@ class RecordCreate(BaseModel):
     proposer: str
     target: str
     reason: str
-    points: int = Field(..., description="分值档位：-10/-5/-3/-1/1/3/5/10/20/50")
+    points: int = Field(..., description="分值档位：-10/-5/-3/-1/1/3/5/10/20/50/60")
     created_by: str
 
 class GuoxueMetricCreate(BaseModel):
