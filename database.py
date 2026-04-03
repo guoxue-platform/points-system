@@ -1,6 +1,6 @@
 """
 积分系统数据库层
-SQLite + 三个表：records / weekly_current / weekly_history
+SQLite + 四个表：records / weekly_current / weekly_history / guoxue_metrics
 """
 
 import sqlite3
@@ -67,6 +67,17 @@ CREATE TABLE IF NOT EXISTS weekly_history (
 
 CREATE INDEX IF NOT EXISTS idx_weekly_history_week   ON weekly_history(week_num);
 CREATE INDEX IF NOT EXISTS idx_weekly_history_target ON weekly_history(target);
+
+CREATE TABLE IF NOT EXISTS guoxue_metrics (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    metric_type       TEXT NOT NULL,
+    week_num          TEXT NOT NULL,
+    recorded_at       TEXT NOT NULL,
+    meta              TEXT,
+    CHECK (metric_type IN ('inspection','ci_build','content_output'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_guoxue_metrics_type_week ON guoxue_metrics(metric_type, week_num);
 """
 
 def init_db():
@@ -222,3 +233,64 @@ def reset_weekly() -> dict:
         conn.execute("DELETE FROM weekly_current WHERE week_num=?", (current_week,))
 
     return {"archived_week": current_week, "archived_count": len(snapshot)}
+
+# -------------------------------------------------------------------
+# 国学平台运行数据
+# -------------------------------------------------------------------
+
+def insert_guoxue_metric(metric_type: str, meta: dict, week: str = None) -> int:
+    """
+    写入国学平台运行数据到 guoxue_metrics 表。
+
+    metric_type: 'inspection' | 'ci_build' | 'content_output'
+    meta: 各类型专属字段的字典，会序列化为 JSON
+    week: YYYY-Www，不传则自动使用当前周
+    """
+    import datetime
+    import json
+
+    if week is None:
+        week = get_current_week_num()
+    now = datetime.datetime.utcnow().isoformat() + "+00:00"
+
+    with get_conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO guoxue_metrics (metric_type, week_num, recorded_at, meta)
+               VALUES (?,?,?,?)""",
+            (metric_type, week, now, json.dumps(meta, ensure_ascii=False))
+        )
+        return cur.lastrowid
+
+def get_guoxue_metrics(metric_type: str = None, week: str = None) -> list:
+    """
+    查询国学平台运行数据。
+    metric_type: 可选过滤 'inspection' | 'ci_build' | 'content_output'
+    week: 可选过滤 YYYY-Www
+    """
+    import json
+
+    conditions = []
+    params = []
+
+    if metric_type:
+        conditions.append("metric_type=?")
+        params.append(metric_type)
+    if week:
+        conditions.append("week_num=?")
+        params.append(week)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT * FROM guoxue_metrics WHERE {where}
+                ORDER BY recorded_at DESC""",
+            params
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        d = dict(row)
+        d["meta"] = json.loads(d["meta"]) if d["meta"] else {}
+        result.append(d)
+    return result

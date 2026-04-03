@@ -17,6 +17,8 @@ from database import (
     get_history,
     reset_weekly,
     get_current_week_num,
+    insert_guoxue_metric,
+    get_guoxue_metrics,
 )
 
 # -------------------------------------------------------------------
@@ -63,6 +65,11 @@ class RecordCreate(BaseModel):
     reason: str
     points: int = Field(..., description="分值档位：-5/-3/-1/1/3/5")
     created_by: str
+
+class GuoxueMetricCreate(BaseModel):
+    metric_type: Literal["inspection", "ci_build", "content_output"]
+    meta: dict
+    week: Optional[str] = Field(None, description="YYYY-Www，不传则自动用当前周")
 
 # -------------------------------------------------------------------
 # API 路由
@@ -117,6 +124,34 @@ def reset_points(branch: str = Header(..., alias="X-Agent-Branch")):
         raise HTTPException(status_code=403, detail="Only main branch can trigger reset")
     result = reset_weekly()
     return ok(result)
+
+# -------------------------------------------------------------------
+# 国学平台运行数据 API（供 fin/guo 录入）
+# -------------------------------------------------------------------
+
+@app.post("/api/v1/guoxue/metrics")
+def create_guoxue_metric(
+    body: GuoxueMetricCreate,
+    branch: str = Header(..., alias="X-Agent-Branch"),
+):
+    """写入国学平台运行数据（inspection/ci_build/content_output）"""
+    check_branch(branch)
+
+    record_id = insert_guoxue_metric(
+        metric_type=body.metric_type,
+        meta=body.meta,
+        week=body.week,
+    )
+    return ok({"id": record_id, "week_num": body.week or get_current_week_num()})
+
+@app.get("/api/v1/guoxue/metrics")
+def list_guoxue_metrics(
+    metric_type: Optional[str] = Query(None, description="inspection/ci_build/content_output"),
+    week: Optional[str] = Query(None, description="YYYY-Www"),
+):
+    """查询国学平台运行数据"""
+    rows = get_guoxue_metrics(metric_type=metric_type, week=week)
+    return ok(rows)
 
 # -------------------------------------------------------------------
 # 启动
